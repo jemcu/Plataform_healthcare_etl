@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+docs/
+README.md
+*.md
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Frontend
+frontend/dist/
+frontend/node_modules/
+frontend/.next/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE & Editors
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+render.yaml
+Jenkinsfile

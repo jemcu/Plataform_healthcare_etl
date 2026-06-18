@@ -1,0 +1,27 @@
+# Django Core
+Django==6.0.6
+djangorestframework==3.17.1
+django-cors-headers==4.4.0
+dj-database-url==3.1.2
+python-decouple==3.8
+
+# Database
+psycopg2-binary==2.9.12
+sqlparse==0.5.5
+tzdata==2026.2
+
+# JWT Authentication
+djangorestframework-simplejwt==5.4.0
+
+# API Documentation
+drf-spectacular==0.34.1
+
+# Async Tasks
+celery==5.4.0
+redis==5.2.1
+django-celery-beat==2.6.0
+django-celery-results==2.5.2
+
+# Utilities
+requests==2.32.3
+python-dateutil==2.9.0
