@@ -1,77 +1,31 @@
-# =============================================================================
-# Healthcare ETL Platform - Render Blueprint
-# =============================================================================
-# ANTES de hacer deploy:
-# 1. Agregar DATABASE_URL manualmente en el dashboard de Render (tu Supabase URL)
-# 2. Hacer push de este archivo a GitHub
-# 3. En Render: New → Blueprint → seleccionar tu repo
-# =============================================================================
 services:
+  # Optional: PostgreSQL Database (use Supabase instead)
+  # - type: pserv
+  #   name: healthcare-postgres
+  #   env: docker
+  #   plan: standard
+  #   dockerfilePath: ./Dockerfile
+  #   region: ohio
+  #   envVars:
+  #     - key: POSTGRES_DB
+  #       value: healthcare_db
+  #     - key: POSTGRES_USER
+  #       value: healthcare_user
+  #     - key: POSTGRES_PASSWORD
+  #       generateValue: true
+  #   persistentDisk:
+  #     name: postgres_data
+  #     mountPath: /var/lib/postgresql/data
+  #     sizeGB: 10
 
-  # ─── REDIS: Cache y broker ─────────────────────────────────────────────────
+  # Redis Cache
   - type: redis
     name: healthcare-redis
     region: ohio
     plan: free
     ipAllowList: []
 
-  # ─── BACKEND: Django REST API ───────────────────────────────────────────────
-  - type: web
-    name: healthcare-backend
-    env: python
-    plan: standard
-    region: ohio
-    buildCommand: |
-      cd backend &&
-      pip install --upgrade pip &&
-      pip install --only-binary=:all: pandas numpy scikit-learn joblib &&
-      pip install --no-cache-dir -r requirements.txt &&
-      python manage.py collectstatic --noinput &&
-      python manage.py migrate --noinput
-    startCommand: cd backend && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 4 --timeout 120
-    healthCheckPath: /api/health/
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings
-      - key: DEBUG
-        value: "False"
-      - key: SECRET_KEY
-        generateValue: true
-      - key: ALLOWED_HOSTS
-        value: "healthcare-backend.onrender.com,.onrender.com"
-      - key: CORS_ALLOWED_ORIGINS
-        value: "https://healthcare-frontend.onrender.com,https://healthcare-backend.onrender.com"
-      - key: CORS_ALLOW_CREDENTIALS
-        value: "True"
-      - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
-      - key: ACCESS_TOKEN_LIFETIME
-        value: "30"
-      - key: REFRESH_TOKEN_LIFETIME
-        value: "1440"
-      - key: LOG_LEVEL
-        value: "INFO"
-      - key: CELERY_TIMEZONE
-        value: "America/Bogota"
-
-  # ─── FRONTEND: React + Vite ──────────────────────────────────────────────────
+  # React Frontend
   - type: web
     name: healthcare-frontend
     env: docker
@@ -80,90 +34,99 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     envVars:
       - key: VITE_API_URL
-        value: "https://healthcare-backend.onrender.com/api"
-      - key: NODE_ENV
-        value: "production"
+        value: 'https://healthcare-backend.onrender.com/api'
+    serviceIdleTimeoutMinutes: 15
+    maxShutdownDelaySeconds: 30
+    routes:
+      - type: http
+        path: /
 
-  # ─── CELERY WORKER: Tareas asíncronas ───────────────────────────────────────
-  - type: worker
+  # Django Backend
+  - type: web
+    name: healthcare-backend
+    env: python
+    plan: standard
+    region: ohio
+    buildCommand: |
+      cd backend && \
+      pip install --no-cache-dir -r requirements.txt && \
+      python manage.py collectstatic --noinput && \
+      python manage.py migrate
+    startCommand: >
+      cd backend && \
+      gunicorn config.wsgi --bind 0.0.0.0:$PORT --workers 4 --timeout 120
+    envVars:
+      - key: DEBUG
+        value: 'False'
+      - key: ALLOWED_HOSTS
+        value: 'healthcare-backend.onrender.com,.onrender.com'
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SUPABASE_URL
+        value: ''  # SET THIS: postgresql://user:password@host:5432/database
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: healthcare-redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        value: ${REDIS_URL}/1
+      - key: CELERY_RESULT_BACKEND
+        value: ${REDIS_URL}/2
+      - key: CORS_ALLOWED_ORIGINS
+        value: 'https://healthcare-frontend.onrender.com,https://healthcare-backend.onrender.com'
+    serviceIdleTimeoutMinutes: 15
+    maxShutdownDelaySeconds: 30
+    routes:
+      - type: http
+        path: /
+
+  # Celery Worker
+  - type: background_worker
     name: healthcare-celery-worker
     env: python
     plan: standard
     region: ohio
     buildCommand: |
-      cd backend &&
-      pip install --upgrade pip &&
-      pip install --only-binary=:all: pandas numpy scikit-learn joblib &&
+      cd backend && \
       pip install --no-cache-dir -r requirements.txt
-    startCommand: cd backend && celery -A config worker --loglevel=info --concurrency=4
+    startCommand: >
+      cd backend && \
+      celery -A config worker --loglevel=info --concurrency=4
     envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings
-      - key: DEBUG
-        value: "False"
-      - key: SECRET_KEY
-        fromService:
-          name: healthcare-backend
-          type: web
-          envVarKey: SECRET_KEY
-      - key: DATABASE_URL
-        sync: false
       - key: SUPABASE_URL
-        sync: false
+        value: ''  # SET THIS: postgresql://user:password@host:5432/database
       - key: REDIS_URL
         fromService:
           type: redis
           name: healthcare-redis
           property: connectionString
       - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
+        value: ${REDIS_URL}/1
       - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
+        value: ${REDIS_URL}/2
 
-  # ─── CELERY BEAT: Tareas programadas ────────────────────────────────────────
-  - type: worker
+  # Celery Beat (Scheduler)
+  - type: background_worker
     name: healthcare-celery-beat
     env: python
     plan: standard
     region: ohio
     buildCommand: |
-      cd backend &&
-      pip install --upgrade pip &&
-      pip install --only-binary=:all: pandas numpy scikit-learn joblib &&
+      cd backend && \
       pip install --no-cache-dir -r requirements.txt
-    startCommand: cd backend && celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    startCommand: >
+      cd backend && \
+      celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings
-      - key: DEBUG
-        value: "False"
-      - key: SECRET_KEY
-        fromService:
-          name: healthcare-backend
-          type: web
-          envVarKey: SECRET_KEY
-      - key: DATABASE_URL
-        sync: false
       - key: SUPABASE_URL
-        sync: false
+        value: ''  # SET THIS: postgresql://user:password@host:5432/database
       - key: REDIS_URL
         fromService:
           type: redis
           name: healthcare-redis
           property: connectionString
       - key: CELERY_BROKER_URL
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
+        value: ${REDIS_URL}/1
       - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: redis
-          name: healthcare-redis
-          property: connectionString
+        value: ${REDIS_URL}/2
