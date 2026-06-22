@@ -151,7 +151,7 @@ USE_TZ = True
 # ── Archivos estáticos y media ────────────────────────────────────────────────
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [ROOT_DIR / 'frontend' / 'static']
+STATICFILES_DIRS = []
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
