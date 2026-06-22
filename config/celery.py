@@ -1,10 +1,5 @@
-"""
-Celery Configuration
-Healthcare ETL Platform
-"""
-
 import os
-from celery import Celery
+from config.celery import Celery
 from celery.schedules import crontab
 
 # Configure Django settings
