@@ -158,8 +158,5 @@ out/
 .Trashes
 ehthumbs.db
 
-# Render deployment
-render.yaml
-
 # Local development
 .env.development.local
