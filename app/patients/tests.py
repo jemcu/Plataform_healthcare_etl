@@ -5,7 +5,7 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework import status
 
-from authentication.models import CustomUser, Role
+from app.authentication.models import CustomUser, Role
 from .models import Paciente
 from .services.transformer import calcular_imc, clasificar_imc, clasificar_riesgo, enriquecer_paciente
 from .services.loader import crear_paciente, recalcular_todos_los_riesgos

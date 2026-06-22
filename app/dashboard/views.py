@@ -27,8 +27,8 @@ class DashboardSummaryView(APIView):
 
         # ── KPIs y segmentaciones ─────────────────────────────────────────
         try:
-            from analytics.services.kpi_calculator import calcular_kpis
-            from analytics.services.segmentation import (
+            from app.analytics.services.kpi_calculator import calcular_kpis
+            from app.analytics.services.segmentation import (
                 segmentar_por_riesgo,
                 segmentar_por_edad,
                 segmentar_por_sexo,
@@ -49,8 +49,8 @@ class DashboardSummaryView(APIView):
 
         # ── Último ETL ────────────────────────────────────────────────────
         try:
-            from etl.models import ETLLog
-            from etl.serializers import ETLLogSerializer
+            from app.etl.models import ETLLog
+            from app.etl.serializers import ETLLogSerializer
             ultimo_etl = ETLLog.objects.first()
             resultado['ultimo_etl'] = (
                 ETLLogSerializer(ultimo_etl).data if ultimo_etl else None
@@ -62,8 +62,8 @@ class DashboardSummaryView(APIView):
 
         # ── Modelo ML activo ──────────────────────────────────────────────
         try:
-            from ml.models import MLModel, EstadoChoices
-            from ml.serializers import MLModelSerializer
+            from app.ml.models import MLModel, EstadoChoices
+            from app.ml.serializers import MLModelSerializer
             modelo = MLModel.objects.filter(
                 activo=True, estado=EstadoChoices.LISTO
             ).first()
@@ -76,8 +76,8 @@ class DashboardSummaryView(APIView):
 
         # ── Últimas predicciones ──────────────────────────────────────────
         try:
-            from ml.models import Prediction
-            from ml.serializers import PredictionSerializer
+            from app.ml.models import Prediction
+            from app.ml.serializers import PredictionSerializer
             preds = Prediction.objects.select_related('modelo').all()[:5]
             resultado['ultimas_predicciones'] = PredictionSerializer(preds, many=True).data
         except Exception as e:
@@ -86,7 +86,7 @@ class DashboardSummaryView(APIView):
 
         # ── Estadísticas de reportes ──────────────────────────────────────
         try:
-            from reports.models import ReporteLog
+            from app.reports.models import ReporteLog
             resultado['total_reportes'] = ReporteLog.objects.count()
         except Exception as e:
             errores.append(f'reportes: {str(e)}')
@@ -106,7 +106,7 @@ class DashboardKPIsView(APIView):
 
     def get(self, request):
         try:
-            from analytics.services.kpi_calculator import calcular_kpis
+            from app.analytics.services.kpi_calculator import calcular_kpis
             return Response(calcular_kpis())
         except Exception as e:
             logger.error(f'[DASHBOARD] Error KPIs: {e}')
@@ -127,13 +127,13 @@ class DashboardChartsView(APIView):
 
     def get(self, request):
         try:
-            from analytics.services.segmentation import (
+            from app.analytics.services.segmentation import (
                 segmentar_por_riesgo,
                 segmentar_por_imc,
                 segmentar_por_diagnostico,
                 segmentar_por_sexo,
             )
-            from patients.models import Paciente
+            from app.patients.models import Paciente
             from django.db.models import Count
             from django.db.models.functions import TruncMonth
 
@@ -204,8 +204,8 @@ class DashboardETLStatusView(APIView):
 
     def get(self, request):
         try:
-            from etl.models import ETLLog
-            from etl.serializers import ETLLogSerializer
+            from app.etl.models import ETLLog
+            from app.etl.serializers import ETLLogSerializer
 
             ultimo = ETLLog.objects.first()
             if not ultimo:
@@ -234,8 +234,8 @@ class DashboardMLStatusView(APIView):
 
     def get(self, request):
         try:
-            from ml.models import MLModel, Prediction, EstadoChoices
-            from ml.serializers import MLModelSerializer
+            from app.ml.models import MLModel, Prediction, EstadoChoices
+            from app.ml.serializers import MLModelSerializer
 
             modelo = MLModel.objects.filter(
                 activo=True, estado=EstadoChoices.LISTO
