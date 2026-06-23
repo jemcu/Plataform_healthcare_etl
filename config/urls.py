@@ -1,12 +1,8 @@
-"""
-HealthAnalytics IPS — URLs raíz
-Registra todas las rutas de los módulos del backend.
-"""
-
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
 
 from rest_framework_simplejwt.views import TokenRefreshView
 from drf_spectacular.views import (
@@ -15,7 +11,15 @@ from drf_spectacular.views import (
     SpectacularRedocView,
 )
 
+def health_check(request):
+    return JsonResponse({'status': 'ok', 'message': 'Healthcare ETL API funcionando'})
+
 urlpatterns = [
+
+    # ── Health check ──────────────────────────────────────────────────────
+    path('', health_check, name='health-check'),
+    path('api/', health_check, name='api-root'),
+    path('api/health/', health_check, name='health'),
 
     # ── Admin Django ──────────────────────────────────────────────────────
     path('admin/', admin.site.urls),
@@ -29,7 +33,6 @@ urlpatterns = [
 
     # ── ETL ───────────────────────────────────────────────────────────────
     path('api/etl/',        include('app.etl.urls')),
-
 
     # ── Analítica ─────────────────────────────────────────────────────────
     path('api/analytics/',  include('app.analytics.urls')),
@@ -47,10 +50,8 @@ urlpatterns = [
     path('api/schema/',     SpectacularAPIView.as_view(),        name='schema'),
     path('api/docs/',       SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/',      SpectacularRedocView.as_view(url_name='schema'),   name='redoc'),
-
 ]
 
-# ── Servir media en desarrollo ────────────────────────────────────────────────
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,  document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
