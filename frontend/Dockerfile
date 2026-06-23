@@ -20,14 +20,12 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install serve to run the app
-RUN npm install -g serve
-
-# Copy built app from builder
+# Copy built app from builder (both client and server are needed)
 COPY --from=builder /app/dist ./dist
 
-# Expose port (Render uses $PORT environment variable)
+# Render assigns the port via $PORT env var
+ENV PORT=3000
 EXPOSE 3000
 
-# Start the application
-CMD ["serve", "-s", "dist", "-l", "3000"]
+# Start the TanStack Start server
+CMD ["node", "dist/server/server.js"]
