@@ -1,26 +1,37 @@
 #!/bin/bash
-
 set -e
 
 echo "======================================"
 echo "  HealthAnalytics IPS - Starting up  "
 echo "======================================"
 
-# Esperar a que la base de datos esté lista
-echo "[INFO] Esperando conexión a la base de datos..."
-until python -c "
-import os, django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
-from django.db import connection
-connection.ensure_connection()
-print('DB conectada.')
-" 2>/dev/null; do
-  echo "[WAIT] Base de datos no disponible, reintentando en 2s..."
-  sleep 2
-done
+# Crear directorio de logs si no existe
+mkdir -p /app/logs
 
-echo "[OK] Base de datos disponible."
+# Esperar a que la base de datos esté lista (con timeout)
+echo "[INFO] Esperando conexión a la base de datos..."
+MAX_RETRIES=20
+COUNT=0
+
+until python -c "
+import os, psycopg2, sys
+try:
+    conn = psycopg2.connect(os.environ.get('DATABASE_URL', ''))
+    conn.close()
+    print('[OK] DB conectada.')
+    sys.exit(0)
+except Exception as e:
+    print(f'[WAIT] Error: {e}', flush=True)
+    sys.exit(1)
+" 2>&1; do
+    COUNT=$((COUNT + 1))
+    if [ $COUNT -ge $MAX_RETRIES ]; then
+        echo "[ERROR] No se pudo conectar después de $MAX_RETRIES intentos. Abortando."
+        exit 1
+    fi
+    echo "[WAIT] Base de datos no disponible, reintentando en 3s... ($COUNT/$MAX_RETRIES)"
+    sleep 3
+done
 
 # Ejecutar migraciones
 echo "[INFO] Aplicando migraciones..."
@@ -36,7 +47,7 @@ if not User.objects.filter(username='admin').exists():
         username='admin',
         email='admin@healthanalytics.com',
         password='Admin1234!',
-        rol='Administrador'
+        rol='administrador'
     )
     print("Superusuario creado: admin / Admin1234!")
 else:
@@ -44,11 +55,13 @@ else:
 EOF
 
 echo "[OK] Inicialización completada."
-echo "[INFO] Iniciando servidor Gunicorn en 0.0.0.0:8000..."
 
+# Iniciar Gunicorn usando el puerto de Render ($PORT) con fallback a 8000
+PORT=${PORT:-8000}
+echo "[INFO] Iniciando Gunicorn en 0.0.0.0:$PORT..."
 exec gunicorn config.wsgi:application \
-    --bind 0.0.0.0:8000 \
-    --workers 3 \
+    --bind 0.0.0.0:$PORT \
+    --workers 2 \
     --timeout 120 \
     --access-logfile /app/logs/access.log \
     --error-logfile /app/logs/error.log \
